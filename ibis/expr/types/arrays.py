@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Callable, Iterable, Optional
 import inspect
 from typing import TYPE_CHECKING, Callable
 
@@ -305,11 +306,22 @@ class ArrayValue(Value):
         ir.Value
             Unnested array
         """
-        expr = ops.Unnest(self).to_expr()
+        expr = ops.Unnest(self).to_expr()     # -> UNNEST(t0.x) AS AsTable_x
         try:
-            return expr.name(self.get_name())
+            return expr.name(self.get_name()) # -> UNNEST(t0.x) AS x
         except com.ExpressionError:
             return expr
+
+    def as_table(
+            self,
+            offset_name: Optional[str] = None,
+        ) -> ir.Table:
+        """TODO(chelsealin)
+        """
+
+        # TODO(chelsealin) add offset_name
+        expr = ops.ArrayTable(self).to_expr()
+        return expr
 
     def join(self, sep: str | ir.StringValue) -> ir.StringValue:
         """Join the elements of this array expression with `sep`.

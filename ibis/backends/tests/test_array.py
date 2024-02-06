@@ -326,6 +326,14 @@ def test_unnest_idempotent(backend):
 
 
 @builtin_array
+@pytest.mark.notimpl("dask", raises=ValueError)
+@pytest.mark.notimpl(["datafusion"], raises=com.OperationNotDefinedError)
+def test_as_table(backend):
+    array_types = backend.array_types
+    print(ibis.to_sql(array_types.cross_join(array_types.x.as_table())).__repr__())
+
+
+@builtin_array
 @pytest.mark.notimpl(["datafusion", "flink"], raises=com.OperationNotDefinedError)
 @pytest.mark.broken(
     "dask", reason="DataFrame.index are different", raises=AssertionError

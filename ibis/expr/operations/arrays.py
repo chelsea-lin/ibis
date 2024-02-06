@@ -8,8 +8,11 @@ import ibis.expr.datashape as ds
 import ibis.expr.datatypes as dt
 import ibis.expr.rules as rlz
 from ibis.common.annotations import attribute
+from ibis.common.collections import FrozenDict
 from ibis.common.typing import VarTuple  # noqa: TCH001
 from ibis.expr.operations.core import Unary, Value
+from ibis.expr.operations.relations import Relation, Simple
+from ibis.expr.schema import Schema
 
 
 @public
@@ -109,6 +112,21 @@ class Unnest(Value):
     @attribute
     def dtype(self):
         return self.arg.dtype.value_type
+
+
+@public
+class ArrayTable(Relation):
+    # -> DatabaseTable
+    """A table sourced from the result set of a select query."""
+    col: Value[dt.Array]
+    
+    @attribute
+    def values(self):
+        return FrozenDict()
+
+    @property
+    def schema(self) -> Schema:
+        return Schema.from_tuples(zip([self.col.name], [self.col.dtype.value_type]))
 
 
 @public

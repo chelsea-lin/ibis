@@ -276,7 +276,7 @@ class SQLGlotCompiler(abc.ABC):
             try:
                 return result.subquery(alias)
             except AttributeError:
-                return result.as_(alias, quoted=self.quoted)
+                return result.as_(alias, quoted=self.quoted, table=[alias.name])
 
         # apply translate rules in topological order
         results = op.map(fn)
@@ -1010,6 +1010,12 @@ class SQLGlotCompiler(abc.ABC):
         return sg.table(
             name, db=namespace.schema, catalog=namespace.database, quoted=self.quoted
         )
+
+    @visit_node.register(ops.ArrayTable)
+    def visit_ArrayTable(
+        self, op, *, col
+    ) -> sg.Table:
+        return sge.Unnest(expressions=[col], offset=None)
 
     @visit_node.register(ops.SelfReference)
     def visit_SelfReference(self, op, *, parent, identifier):
