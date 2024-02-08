@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import inspect
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, Optional
 
 from public import public
 
@@ -266,7 +266,11 @@ class ArrayValue(Value):
 
     __mul__ = __rmul__ = repeat
 
-    def unnest(self) -> ir.Value:
+    def unnest(
+            self,
+            offset: Optional[bool] = None,
+            preserve_empty: Optional[bool] = None,
+        ) -> ir.Value:
         """Flatten an array into a column.
 
         ::: {.callout-note}
@@ -305,7 +309,7 @@ class ArrayValue(Value):
         ir.Value
             Unnested array
         """
-        expr = ops.Unnest(self).to_expr()
+        expr = ops.Unnest(self, offset, preserve_empty).to_expr()
         try:
             return expr.name(self.get_name())
         except com.ExpressionError:

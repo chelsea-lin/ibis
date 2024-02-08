@@ -103,6 +103,8 @@ class ArrayFilter(Value):
 @public
 class Unnest(Value):
     arg: Value[dt.Array]
+    offset: Optional[bool] = None
+    preserve_empty: Optional[bool] = None
 
     shape = ds.columnar
 

@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import re
+import typing
 from functools import singledispatchmethod
 
 import sqlglot as sg
 import sqlglot.expressions as sge
+from sqlglot.dialects import BigQuery
+from sqlglot.dialects.bigquery import _alias_ordered_group
+from sqlglot.helper import find_new_name
 
 import ibis.common.exceptions as com
 import ibis.expr.datatypes as dt
@@ -25,6 +29,99 @@ from ibis.common.temporal import DateUnit, IntervalUnit, TimestampUnit, TimeUnit
 from ibis.expr.rewrites import p, rewrite_sample, y
 
 _NAME_REGEX = re.compile(r'[^!"$()*,./;?@[\\\]^`{}~\n]+')
+
+
+def _explode_to_unnest(expression: sge.Expression) -> sge.Expression:
+    """TODO
+    """
+    if isinstance(expression, sge.Select):
+
+        taken_select_names = set(expression.named_selects)
+
+        def new_name(names: typing.Set[str], name: str) -> str:
+            name = find_new_name(names, name)
+            names.add(name)
+            return name
+
+        # we use list here because expression.selects is mutated inside the loop
+        for select in list(expression.selects):
+            explode = select.find(sge.Explode)
+
+            if explode:
+                pos_alias = ""
+                explode_alias = ""
+
+                if isinstance(select, sge.Alias):
+                    explode_alias = select.args["alias"]
+                    alias = select
+                elif isinstance(select, sge.Aliases):
+                    pos_alias = select.aliases[0]
+                    explode_alias = select.aliases[1]
+                    alias = select.replace(sge.alias_(select.this, "", copy=False))
+                else:
+                    alias = select.replace(sge.alias_(select, ""))
+                    explode = alias.find(sge.Explode)
+                    assert explode
+
+                is_posexplode = isinstance(explode, sge.Posexplode)
+                explode_arg = explode.this
+
+                # This ensures that we won't use [POS]EXPLODE's argument as a new selection
+                if isinstance(explode_arg, sge.Column):
+                    taken_select_names.add(explode_arg.output_name)
+
+                if not explode_alias:
+                    explode_alias = new_name(taken_select_names, "col")
+
+                    if is_posexplode:
+                        pos_alias = new_name(taken_select_names, "pos")
+
+                if not pos_alias:
+                    pos_alias = new_name(taken_select_names, "pos")
+
+                alias.set("alias", sge.to_identifier(explode_alias))
+
+                expressions = expression.expressions
+                index = expressions.index(alias)
+                expressions[index].replace(sge.column(explode_alias))
+
+                offset = None
+                if is_posexplode:
+                    expressions = expression.expressions
+                    expressions.insert(
+                        index + 1,
+                        sge.column(pos_alias),
+                    )
+                    expression.set("expressions", expressions)
+                    offset = sge.to_identifier(pos_alias)
+
+                join_type = "LEFT" if isinstance(explode, sge.ExplodeOuter) or isinstance(explode, sge.PosexplodeOuter) else "CROSS"
+
+                expression.join(
+                    sge.alias_(
+                        sge.Unnest(
+                            expressions=[explode_arg.copy()],
+                            offset=offset,
+                        ),
+                        "",
+                        table=[explode_alias],
+                    ),
+                    join_type=join_type,
+                    copy=False,
+                )
+
+    return expression
+
+
+BigQuery.Generator.TRANSFORMS |= {
+    sge.Select: sg.transforms.preprocess([
+        # sg.transforms.explode_to_unnest(),
+        _explode_to_unnest,
+        sg.transforms.eliminate_distinct_on,
+        _alias_ordered_group,
+        sg.transforms.eliminate_semi_and_anti_joins,
+    ]),
+}
 
 
 @replace(p.WindowFunction(p.MinRank | p.DenseRank, y @ p.WindowFrame(start=None)))
@@ -728,6 +825,17 @@ class BigQueryCompiler(SQLGlotCompiler):
         if where is not None:
             arg = self.if_(where, arg, NULL)
         return self.f.count(sge.Distinct(expressions=[arg]))
+
+    @visit_node.register(ops.Unnest)
+    def visit_Unnest(self, op, *, arg, offset, preserve_empty):
+        if not offset and not preserve_empty:
+            return sge.Explode(this=arg)
+        elif not offset and preserve_empty:
+            return sge.ExplodeOuter(this=arg)
+        elif offset and not preserve_empty:
+            return sge.Posexplode(this=arg)
+        else:
+            return sge.PosexplodeOuter(this=arg)
 
     @visit_node.register(ops.CountDistinctStar)
     @visit_node.register(ops.DateDiff)
