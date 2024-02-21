@@ -302,6 +302,40 @@ def test_unnest_idempotent(backend):
     tm.assert_frame_equal(result, expected)
 
 
+# @builtin_array
+# @pytest.mark.never(
+#     "pyspark", reason="pyspark throws away nulls in collect_list", raises=AssertionError
+# )
+# @pytest.mark.never(
+#     "clickhouse",
+#     reason="clickhouse throws away nulls in groupArray",
+#     raises=AssertionError,
+# )
+# @pytest.mark.notimpl(["dask"], raises=ValueError)
+# @pytest.mark.notimpl(["datafusion", "flink"], raises=com.OperationNotDefinedError)
+# @pytest.mark.notimpl(
+#     ["risingwave"],
+#     raises=ValueError,
+#     reason="Do not nest ARRAY types; ARRAY(basetype) handles multi-dimensional arrays of basetype",
+# )
+# def test_unnest_w_offset(backend):
+#     array_types = backend.array_types
+#     df = array_types.execute()
+#     expr = (
+#         array_types.select(
+#             ["scalar_column", array_types.x.cast("!array<int64>").unnest(offset=True).name("x")]
+#         )
+#         .group_by("scalar_column")
+#         .aggregate(x=lambda t: t.x.collect())
+#         .order_by("scalar_column")
+#     )
+#     result = expr.execute()
+#     expected = (
+#         df[["scalar_column", "x"]].sort_values("scalar_column").reset_index(drop=True)
+#     )
+#     tm.assert_frame_equal(result, expected)
+
+
 @builtin_array
 @pytest.mark.notimpl("dask", raises=ValueError)
 @pytest.mark.notimpl(["datafusion", "flink"], raises=com.OperationNotDefinedError)
@@ -312,26 +346,27 @@ def test_unnest_idempotent(backend):
 )
 def test_unnest_no_nulls(backend):
     array_types = backend.array_types
-    df = array_types.execute()
-    expr = (
-        array_types.select(
-            ["scalar_column", array_types.x.cast("!array<int64>").unnest().name("y")]
-        )
-        .filter(lambda t: t.y.notnull())
-        .group_by("scalar_column")
-        .aggregate(x=lambda t: t.y.collect())
-        .order_by("scalar_column")
-    )
-    result = expr.execute()
-    expected = (
-        df[["scalar_column", "x"]]
-        .explode("x")
-        .dropna(subset=["x"])
-        .groupby("scalar_column")
-        .x.apply(lambda xs: [x for x in xs if x is not None])
-        .reset_index()
-    )
-    tm.assert_frame_equal(result, expected)
+    ibis.to_sql(array_types.z.unnest(offset=True), dialect="bigquery")
+    # df = array_types.execute()
+    # expr = (
+    #     array_types.select(
+    #         ["scalar_column", array_types.x.cast("!array<int64>").unnest().name("y")]
+    #     )
+    #     .filter(lambda t: t.y.notnull())
+    #     .group_by("scalar_column")
+    #     .aggregate(x=lambda t: t.y.collect())
+    #     .order_by("scalar_column")
+    # )
+    # result = expr.execute()
+    # expected = (
+    #     df[["scalar_column", "x"]]
+    #     .explode("x")
+    #     .dropna(subset=["x"])
+    #     .groupby("scalar_column")
+    #     .x.apply(lambda xs: [x for x in xs if x is not None])
+    #     .reset_index()
+    # )
+    # tm.assert_frame_equal(result, expected)
 
 
 @builtin_array

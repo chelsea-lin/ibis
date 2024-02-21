@@ -4,7 +4,7 @@ WITH t0 AS (
     t2.`timestamp_col`,
     t2.`int_col`,
     t2.`string_col`
-  FROM `ibis-gbq`.ibis_gbq_testing.functional_alltypes AS t2
+  FROM `bigframes-dev`.ibis_gbq_testing.functional_alltypes AS t2
   WHERE
     t2.`timestamp_col` < @param_0
 )

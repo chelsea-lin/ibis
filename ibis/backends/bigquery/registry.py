@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 import sqlglot as sg
+import sqlglot.expressions as sge
 from multipledispatch import Dispatcher
 
 import ibis
@@ -736,6 +737,15 @@ def _count_distinct_star(t, op):
     )
 
 
+def _unnest(t, op):
+    arg = op.arg
+    offset = op.offset
+    if not offset:
+        return sge.Explode(this=t.translate(arg))
+    else:
+        return sge.Posexplode(this=t.translate(arg))
+
+
 def _time_delta(t, op):
     left = t.translate(op.left)
     right = t.translate(op.right)
@@ -993,7 +1003,7 @@ OPERATION_REGISTRY = {
     ops.TableColumn: table_column,
     ops.CountDistinctStar: _count_distinct_star,
     ops.Argument: lambda _, op: op.param,
-    ops.Unnest: unary("UNNEST"),
+    ops.Unnest: _unnest,
     ops.TimeDelta: _time_delta,
     ops.DateDelta: _date_delta,
     ops.TimestampDelta: _timestamp_delta,

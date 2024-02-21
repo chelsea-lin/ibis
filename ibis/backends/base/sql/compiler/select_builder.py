@@ -238,6 +238,11 @@ class SelectBuilder:
             self.table_set = op
             self.select_set = [op]
 
+    def _collect_Unnest(self, op, toplevel=False):
+        if toplevel:
+            self.table_set = op.args[0].table
+            self.select_set = [op]
+
     # --------------------------------------------------------------------
     # Subquery analysis / extraction
 

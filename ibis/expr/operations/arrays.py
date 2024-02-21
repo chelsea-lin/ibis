@@ -10,6 +10,8 @@ import ibis.expr.rules as rlz
 from ibis.common.annotations import attribute
 from ibis.common.typing import VarTuple  # noqa: TCH001
 from ibis.expr.operations.core import Unary, Value
+from ibis.expr.operations.relations import Relation
+from ibis.expr.schema import Schema
 
 
 @public
@@ -101,14 +103,17 @@ class ArrayFilter(Value):
 
 
 @public
-class Unnest(Value):
+class Unnest(Relation):
     arg: Value[dt.Array]
+    offset: Optional[bool] = None
 
-    shape = ds.columnar
-
-    @attribute
-    def dtype(self):
-        return self.arg.dtype.value_type
+    @property
+    def schema(self) -> Schema:
+        # names, types = [], []
+        # for value in self.arg.table.schema[self.arg.name]:
+        #     names.append(value.name)
+        #     types.append(value.dtype)
+        return Schema.from_tuples(zip([self.arg.name], [self.arg.dtype.value_type]))
 
 
 @public
