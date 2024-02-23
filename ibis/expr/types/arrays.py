@@ -311,6 +311,26 @@ class ArrayValue(Value):
         except com.ExpressionError:
             return expr
 
+    def enumerate(self, start: int = 0) -> ir.Value:
+        """TODO: Add header
+        """
+        (parent, ) = self.op().relations
+        return ops.Enumerate(self, parent, start).to_expr()
+        # TODO: Teset literal arrays
+        # parents = self.op().relations
+
+        # if len(parents) == 0:
+        #     return ops.DummyTable({self.get_name(): self}).to_expr()
+        # elif len(parents) == 1:
+        #     (parent,) = parents
+        #     return parent.to_expr().aggregate(self)
+        # else:
+        #     raise com.RelationError(
+        #         f"The scalar expression {self} cannot be converted to a "
+        #         "table expression because it involves multiple base table "
+        #         "references"
+        #     )
+
     def join(self, sep: str | ir.StringValue) -> ir.StringValue:
         """Join the elements of this array expression with `sep`.
 

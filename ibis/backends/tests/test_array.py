@@ -350,6 +350,16 @@ def test_unnest_no_nulls(backend):
 
 
 @builtin_array
+@pytest.mark.notimpl(["datafusion", "flink"], raises=com.OperationNotDefinedError)
+@pytest.mark.broken(
+    "dask", reason="DataFrame.index are different", raises=AssertionError
+)
+def test_enumerate(backend):
+    array_types = backend.array_types
+    ibis.to_sql(array_types.z.enumerate(), dialect="bigquery")
+
+
+@builtin_array
 @pytest.mark.notimpl("dask", raises=ValueError)
 @pytest.mark.notimpl(
     "pandas",

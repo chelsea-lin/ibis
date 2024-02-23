@@ -696,6 +696,16 @@ class BigQueryCompiler(SQLGlotCompiler):
         if how not in ("md5", "sha1", "sha256", "sha512"):
             raise NotImplementedError(how)
         return self.f[how](arg)
+    
+    def visit_Enumerate(self, op, *, arg, parent, start):
+        # return self.f.array(
+        #     sg.select(name).distinct().from_(self._unnest(arg, as_=name))
+        # )
+        explode = sge.Posexplode(this=arg)
+        from_ = sg.select(explode).from_(parent).subquery()
+        struct = sge.Struct(expressions=[sge.Column(this=sge.Identifier(this="col")), sge.Column(this=sge.Identifier(this="pos"))])
+        return sg.select(struct).from_(from_)
+        # sg.select(sge.Struct(expressions=[sge.Column(this=sge.Identifier(this="col")), sge.Column(this=sge.Identifier(this="pos"))])).from_(sg.select(sge.Posexplode(this=arg)).from_(parent).subquery())
 
     @staticmethod
     def _gen_valid_name(name: str) -> str:

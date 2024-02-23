@@ -10,6 +10,8 @@ import ibis.expr.rules as rlz
 from ibis.common.annotations import attribute
 from ibis.common.typing import VarTuple  # noqa: TCH001
 from ibis.expr.operations.core import Unary, Value
+from ibis.expr.operations.relations import Relation
+from ibis.expr.schema import Schema
 
 
 @public
@@ -109,6 +111,19 @@ class Unnest(Value):
     @attribute
     def dtype(self):
         return self.arg.dtype.value_type
+
+
+@public
+class Enumerate(Value):
+    arg: Value[dt.Array]
+    parent: Relation
+    start: int
+
+    shape = ds.columnar
+
+    @attribute
+    def dtype(self):
+        return dt.Struct(dict(offset=dt.uint64, col=self.arg.dtype.value_type))
 
 
 @public
